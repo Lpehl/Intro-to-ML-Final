@@ -1,0 +1,71 @@
+---
+title: "Visual Story telling 2"
+output: html_document
+date: "2023-08-08"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{R}
+# read in the data
+df_Cap = read.csv("C:/Users/evinm/Downloads/capmetro_UT.csv")
+library(ggplot2)
+```
+
+Making plots with Capital Metro data using ggplot
+
+
+
+This plot we are looking at the number of people who board and the temperature of the months 
+September, October, and November
+```{R}
+# Boarding vs. Temperature without Faceting (Colored by Month)
+ggplot(df_Cap, aes(x = temperature, y = boarding, color = month)) +
+  geom_point() +
+  labs(x = "Temperature (F)", y = "Boarding", title = "Boarding vs. Temperature (Colored by Month)")
+```
+
+
+
+This plot looks into the number of people who board based on the hour of the day on weekends
+and weekdays. Hours 12-18 are most popular
+```{R}
+#Boarding vs. Hour of Day without Faceting (Colored by Weekend Indicator)
+ggplot(df_Cap, aes(x = hour_of_day, y = boarding, color = weekend)) +
+  geom_point() +
+  labs(x = "Hour of Day", y = "Boarding", title = "Boarding vs. Hour of Day (Colored by Weekend Indicator)")
+```
+
+
+
+What hours of the day do people get off. Weekdays are basically the same graph, weekends, as expected, are
+similar to each other. During weekdays, most people get off between 7 and 10 A.M.
+```{R}
+# Plot 2: Alighting vs. Hour of Day with Facets for Day of Week
+ggplot(df_Cap, aes(x = hour_of_day, y = alighting, color = day_of_week)) +
+  geom_point() +
+  facet_wrap(~ day_of_week, nrow = 2) +
+  labs(x = "Hour of Day", y = "Alighting", title = "Alighting vs. Hour of Day by Day of Week") +
+  theme_minimal() +
+  theme(legend.position = "bottom") +
+  scale_color_discrete()
+```
+
+
+Here we are looking into if there is a relationship between temperature and the number of people who
+get off, for the months of Sep, Oct, Nov. We do not see a clear relationship in all three, especially
+Nov and Oct. There may be a slight relationship in September that as Temperatures rise, alighting falls.
+```{R}
+ggplot(df_Cap, aes(x = temperature, y = alighting, color = month)) +
+  geom_point() +
+  facet_wrap(~ month, nrow = 2) +
+  labs(x = "Temperature (F)", y = "Alighting", title = "Alighting vs. Temperature by Month") +
+  theme_minimal() +
+  theme(legend.position = "bottom") +
+  scale_color_discrete()
+```
+
+
+

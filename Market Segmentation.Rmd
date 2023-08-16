@@ -1,0 +1,454 @@
+---
+title: "Market Segmentation"
+output: pdf_document
+date: "2023-08-14"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+```{r pressure, echo=FALSE}
+library(tidyverse)
+library(ggplot2)
+library(ClusterR)
+library(foreach)
+library(mosaic)
+library(data.table)
+library(factoextra)
+library(cluster)
+
+set.seed(1)
+```
+
+
+```{r pressure2, echo=FALSE}
+#Create function to filter out certain columns
+social_marketing <- read.csv("social_marketing.csv")
+remove_outliers <- function(data, column_name1, threshold1, column_name2, threshold2) {
+  data[!(data[[column_name1]] > threshold1 | data[[column_name2]] > threshold2), ]
+}
+
+#use function to filter out potential bot tweets
+filtered_data <- remove_outliers(social_marketing, "spam", 0, "adult", 0)
+
+#check how many rows we removed
+nrow(social_marketing)
+#Original dataset has 7882
+nrow(filtered_data)
+#Filtered dataset has 7309, so we lost less than 8% of our rows.
+#Based on our personal judgement, the removal of potential bots justifies the relatively small loss of rows
+
+####Create a bar plot of the average for each topic to get a basic overview over out customer group###########
+# Convert the data table to a data frame
+data_df <- as.data.frame(filtered_data)
+
+# Exclude the first column and the last two columns
+columns_to_exclude <- c(1, (ncol(filtered_data) - 1):ncol(filtered_data))
+data_df_subset <- filtered_data[, -columns_to_exclude]
+
+# Calculate the mean for each remaining column
+means <- sapply(data_df_subset, mean)
+
+# Order means in descending order and select top 10
+top_n <- 10
+top_columns <- names(sort(means, decreasing = TRUE)[1:top_n])
+```
+
+Visualize using Barplot
+
+```{r pressure3, echo=FALSE}
+# Create a bar plot of the means for the top 10 columns with adjusted font size
+barplot(means[top_columns], names.arg = top_columns, xlab = "Columns", ylab = "Mean Value",
+        main = "Mean Values for Top 10 Columns", col = "skyblue",
+        cex.names = 0.4)  # Adjust the font size 
+```
+
+As we can see from the barplot the followers tweet a lot about generic topics such as chatter, politics and current events
+However, we can see there are some topics that appear to be specific about our social media audience
+We can see that Photo Sharing, Health and nutrition, Cooking, sports fandom, travel, college uni, and personal fitness are in the top 10 tweeted about topics from our audience
+Just based on this the target audience appears to be: young (College-age), health and fitness conscious, and into travel and photography
+
+##############################
+Since we think that these generic topics such as chatter, politics, current events, uncategorized, and news are not particularly insightful for our specific business objective we decided to exclude them as well
+This will allows us to gain a more useful understanding in further analsis
+##############################
+
+```{r pressure4, echo=FALSE}
+#define which columns we want to exclude
+columns_to_exclude2 <- c('chatter', 'current_events', 'uncategorized', 'politics', 'news')
+
+#Remove the specified columns
+data_df_subset2 <- data_df_subset[, !(names(data_df_subset) %in% columns_to_exclude2)]
+
+# Calculate the mean for each remaining column
+means2 <- sapply(data_df_subset2, mean)
+
+# Order means in descending order and select top 10
+top_n <- 10
+top_columns2 <- names(sort(means2, decreasing = TRUE)[1:top_n])
+```
+
+```{r pressure5, echo=FALSE}
+# Create a new bar plot of the means for the top 10 columns with adjusted font size
+barplot(means2[top_columns2], names.arg = top_columns2, xlab = "Columns", ylab = "Mean Value",
+        main = "Mean Values for Top 10 Columns", col = "skyblue",
+        cex.names = 0.4)  # Adjust the font size 
+```
+
+As we can see from our new barplot now: shopping, food, and online gaming appear to be also important features of our audience
+This is much more helpful!
+
+Now we will perform clustering on our new filtered dataset
+
+```{r pressure6, echo=FALSE}
+# Center and scale the data
+X = data_df_subset2
+X = scale(X, center=TRUE, scale=TRUE)
+
+# Extract the centers and scales from the rescaled data (which are named attributes)
+mu = attr(X, "scaled:center")
+sigma = attr(X, "scaled:scale")
+
+#Check dimensions
+dim(X)
+#We have 29 dimensions in our subset
+
+#Calculate how many clusters we need
+#Within Sum Squares
+fviz_nbclust(X, kmeans, method = 'wss') +
+  labs(subtitle = 'Elbow method')
+
+#Based on this chart we can see that the Total within sum of squares is lowest at 10 clusters
+#However, we decided to pick 7 clusters because the slope is almost level immediately after
+
+#Therefore we will run k-means with 7 clusters
+
+# Run k-means with 7 clusters and 25-starts
+clust1 = kmeans(X, 7, nstart = 50)
+
+#Let's look at the clusters
+clust1$center[1,]*sigma + mu
+clust1$center[2,]*sigma + mu
+clust1$center[3,]*sigma + mu
+clust1$center[4,]*sigma + mu
+clust1$center[5,]*sigma + mu
+clust1$center[6,]*sigma + mu
+clust1$center[7,]*sigma + mu
+```
+
+Let's visualize the clusters
+
+```{r pressure7, echo=FALSE}
+#Let's create a few plots to look at the clusters
+qplot(travel, health_nutrition, data=data_df_subset2, color=factor(clust1$cluster))
+qplot(religion, fashion, data = data_df_subset2, color=factor(clust1$cluster))
+qplot(college_uni, tv_film, data = data_df_subset2, color=factor(clust1$cluster))
+```
+
+```{r pressure8, echo=FALSE}
+#Create a barplot
+# Extract the cluster centers
+cluster_centers1 <- clust1$centers
+
+# Transpose the cluster centers for proper visualization
+cluster_centers_transposed1 <- t(cluster_centers1)
+
+# Create a bar plot for each cluster
+barplot(cluster_centers_transposed1, beside = TRUE, col = rainbow(ncol(cluster_centers_transposed1)),
+        main = "Cluster Centers", xlab = "Features", ylab = "Value")
+
+# Add x-axis labels
+legend("topright", legend = paste("Cluster", 1:nrow(cluster_centers1)),
+       fill = rainbow(nrow(cluster_centers1)), cex = 0.8)
+```
+
+```{r pressure9, echo=FALSE}
+#Create a heatmap
+
+# Create a heatmap of the cluster centers
+heatmap(cluster_centers1, Rowv = NA, Colv = NA, col = cm.colors(256),
+        main = "Cluster Centers Heatmap", xlab = "Features", ylab = "Clusters")
+```
+
+```{r pressure10, echo=FALSE}
+#Create cluster profiles
+# Create a table of cluster centers for each feature
+cluster_centers_table1 <- as.data.frame(cluster_centers1)
+rownames(cluster_centers_table1) <- paste("Cluster", 1:nrow(cluster_centers1))
+colnames(cluster_centers_table1) <- colnames(cluster_centers1)
+print(cluster_centers_table1)
+```
+
+```{r pressure11, echo=FALSE}
+#CH index
+k_grid <- seq(1,7)
+N = nrow(X)
+CH_grid = foreach(k = k_grid, .combine = 'c') %do% {
+  cluster_k = kmeans(X, k, nstart = 50)
+  W = cluster_k$tot.withinss
+  B= cluster_k$betweenss
+  CH = (B/W)*((N-k)/(k-1))
+  CH
+}
+
+plot(CH_grid)
+```
+
+Based on the CH_grid, 6 clusters seem like a reasonable choice)
+
+```{r pressure12, echo=FALSE}
+#Gap statistics
+clus_Gap = clusGap(x = X, FUNcluster = kmeans, K.max = 10, B = 50, nstart = 50)
+#Based on the Gap statistic output, 6 clusters seems like a reasonable choice
+plot(clus_Gap)
+
+```
+
+Based on our analysis above we will now cluster again, this time with k = 6
+
+```{r pressure13, echo=FALSE}
+# Run k-means with 6 clusters and 50-starts
+clust2 = kmeans(X, 6, nstart = 50)
+
+clust2$center[1,]*sigma + mu
+clust2$center[2,]*sigma + mu
+clust2$center[3,]*sigma + mu
+clust2$center[4,]*sigma + mu
+clust2$center[5,]*sigma + mu
+clust2$center[6,]*sigma + mu
+
+```
+
+Let's visualize this:
+
+```{r pressure14, echo=FALSE}
+#Let's create a few plots to look at the clusters
+qplot(travel, health_nutrition, data=data_df_subset2, color=factor(clust2$cluster))
+qplot(religion, fashion, data = data_df_subset2, color=factor(clust2$cluster))
+qplot(college_uni, tv_film, data = data_df_subset2, color=factor(clust2$cluster))
+
+```
+
+Create a barplot
+
+```{r pressure15, echo=FALSE}
+#Create a barplot
+# Extract the cluster centers
+cluster_centers2 <- clust2$centers
+
+# Transpose the cluster centers for proper visualization
+cluster_centers_transposed2 <- t(cluster_centers2)
+
+# Create a bar plot for each cluster
+barplot(cluster_centers_transposed2, beside = TRUE, col = rainbow(ncol(cluster_centers_transposed2)),
+        main = "Cluster Centers", xlab = "Features", ylab = "Value")
+
+# Add x-axis labels
+legend("topright", legend = paste("Cluster", 1:nrow(cluster_centers2)),
+       fill = rainbow(nrow(cluster_centers2)), cex = 0.8)
+
+```
+
+Create a heatmap
+
+```{r pressure16, echo=FALSE}
+# Create a heatmap of the cluster centers
+heatmap(cluster_centers2, Rowv = NA, Colv = NA, col = cm.colors(256),
+        main = "Cluster Centers Heatmap", xlab = "Features", ylab = "Clusters")
+
+```
+
+Create cluster profiles
+
+```{r pressure17, echo=FALSE}
+# Create a table of cluster centers for each feature
+cluster_centers_table2 <- as.data.frame(cluster_centers2)
+rownames(cluster_centers_table2) <- paste("Cluster", 1:nrow(cluster_centers2))
+colnames(cluster_centers_table2) <- colnames(cluster_centers2)
+print(cluster_centers_table2)
+
+```
+
+Report:
+
+Methods applied and explanation:
+
+To analyze the social-media audience of NutrientH20 we used varies methods and Machine Learning concepts.
+First we started out by filtering out potential bots out of our dataset. Specifically we filtered out all twitter accounts that made any tweets categorized as either spam or adult.
+This reduced the number of twitter accounts to be analyzed by less than 8%, which we considered to be worth it as it allows us to get rid of these potential bots.
+Secondly, we reduced the number of columns to be analyzed by removing the following generic categories: chatter, politics, current events, uncategorized, and news
+We did this because we would expect most twitter users to tweet about these categories regardless of their specific interests or product pages they follow.
+Therefore, we tried to focus on more specific or  unique categories that appear to be common among the social-media audience.
+Then we created a barplot of the top 10 columns with the highest mean ratings to get an initial overview.
+
+```{r pressure18, echo=FALSE}
+barplot(means2[top_columns2], names.arg = top_columns2, xlab = "Columns", ylab = "Mean Value",
+        main = "Mean Values for Top 10 Columns", col = "skyblue",
+        cex.names = 0.8)  # Adjust the font size
+
+```
+
+As we can see in this barplot the top most tweeted about topics by our social-media audience are: 
+1. Photo sharing
+2. Health/Nutrition
+3. Cooking
+4. Sports Fandom
+5. Travel
+6. College Uni
+7. Personal Fitness
+8. Shopping
+9. Food 
+10. Online Gaming
+
+Just based of this it appears as if our target-audience is young, health and fitness conscious, and into traveling/photo sharing
+
+However, just because these are the most tweeted about categories on average does not mean that all of our audience has the same interests
+A good way to look for certain patterns our interest groups within the audience is to use clustering
+
+First we center and scale the data. Then we use the Elbow method, the CH-index and GAP statistics to find the optimal number of clusters
+Based on these methods we clustered one time using k=6 and one time using k=7
+
+Then we visualize our clustering results using barplots, heatmaps and cluster profiles
+
+Based on our visualization we can see that performing clustering was very helpful in better understanding our social-media audience
+This is because it allows us to identify different groups within our social media followers with common interests in mind
+
+After performing visualization we decided to focus on k=7 because it provided us with a clearer distinction of groups
+
+Based on our clustering results there appear to be several distinct groups with common interests:
+
+1. Automotive + shopping
+There appears to be one group that is very into Automotive and shopping but does also tweet about home and garden as well as dating
+-> See cluster 1 for k=7
+
+2. Health + Fitness + Outdoors
+There appears to be one distinct group that is very much interested in Health, Fitness and Outdoors topics
+-> See cluster 2 for k=7
+
+3. Cooking + Beauty + Fashion
+There appears to be one distinct gruop that is very much into Beauty and Fashion but also tweets about cooking
+-> See cluster 3 for k=7
+
+4. Gaming + College/Uni + Sports_playing
+There appears to be one distinct group that tweets a lot about gaming, College and sports
+-> See cluster 4 for k=7
+
+5. Travel + Computer
+There appears to be one group that is very interested in Travel and Computers
+-> See cluster 5 for k=7
+
+6. TV/Film + Music + Art
+There appears to be one group that is very interested in TV/Film and Art as well as Music
+
+7. Family + Religion + Food + Sports fandom + parenting + dating
+There appears to be one group that is less heavily concentrated in one particular topic but has more spread out interest in all of these topics
+
+Analysis/Interpretation/Recommendation:
+
+Our analysis provided us with some very valuable insight about the social-media audience of Nutrient H20
+
+We were able to identify some specific groups with shared interests thanks to clustering.
+
+Let us focus on the most distinct groups first with the strongest concentration in specific categories and most actionable interests:
+
+1. Health/Fitness/Outdoors
+There is a clear group of followers that is strongly interested in the Health, Fitness, and Outdoors scene
+Since these interests are strongly correlated NutrientH20 has a great opportunity to target this group specifically
+
+Some examples would be:
+-Post workout ideas
+-Post Health tips and facts
+-Post Outdoor places to explore
+-Post Outdoor workouts 
+-Collaborate with Health and Fitness influencer on social media
+-Post pictures of products with Outdoor scenes in background
+-Emphasize the health and fitness benefits of the product
+-Emphasize Sustainability/Outdoor benefits of product
+-Collaborate with other Health/Fitness/Outdoor brands
+-Have a prize competition where users can submit content and in return win Health/Fitness/Outdoors related prizes
+
+
+2. Cooking/Beauty/Fashion
+There is a clear group of followers that is strongly interested in the Cooking, Beauty, and Fashion scene
+Since these interests are strongly correlated NutrientH20 has a great opportunity to target this group specifically
+
+Some examples would be:
+-Post cooking recipe ideas (ideally with some connection to own products)
+-Consider selling merchandise with brand logo
+-Consider creating a clothing line with brand logo or theme that somehow relates to brand
+-Collaborate with Beauty or Fashion influencer
+-Collaborate with Cooking/food influencer
+-Collaborate with Beauty/Fashion brands
+-Collaborate with Cooking/Food brands
+-Emphasize beauty benefits of products (e.g. better skin health etc.)
+-Show how product can be used for cooking applications
+-Have a prize competition where users can submit content and in return win Cooking/Beauty/Fashion related prizes
+
+
+3. Gaming/College/Sports Playing
+There is a clear group of followers that is strongly interested in the Cooking, Beauty, and Fashion scene
+Since these interests are strongly correlated NutrientH20 has a great opportunity to target this group specifically
+
+Some examples would be:
+-Post College/sports/gaming related content
+-Have sales when semesters start
+-Collaborate with college athletes
+-Collaborate with gaming influencer
+-Sponsorship agreements with college sports 
+-Sponsorship agreements with Esports 
+-Create a new product targeted at college students
+-Emphasize benefits of product for Sports 
+-Emphasize benefits of product for College students
+-Create a new product targeted at gamers
+-Have a prize competition where users can submit content and in return win College/sports/gaming related prizes
+
+4. Travel/Computers
+There is a clear group of followers that is strongly interested in Travel and Computers
+Even though these topics do not seem particularly correlated this is still worth taking note because this group is so distinct 
+Nutrient H20 should consider targeting this group:
+
+Some examples would be:
+-Have a prize competition where users can submit content and in return win Travel related prizes (one-weekend stays, flight ticket etc.)
+-Emphasize the benefits of product when traveling
+-have computer related prizes
+-Post product pictures with travel destinations in background
+
+5. Art/TV/Film
+There is a clear group of followers that is strongly interested in the Cooking, Beauty, and Fashion scene
+Since these interests are strongly correlated NutrientH20 has a great opportunity to target this group specifically
+
+Some examples would be:
+-Collaborate with movie stars or artists
+-Have a art contest where followers can submit designs for brand and win something in return
+-Create posts related to popular movie starts, TV releases
+-Post content related to Art/TV/Film
+
+6.There seems to be one cluster that is interested in topics such as family, religion, parenting, and school
+Even though this group is not heavily interested in one individual topics they have some interest in all of these
+A guess would be that these are "older follower" such as parents or households with families
+This group could also be targeted.
+
+Some examples would be:
+-Have posts honoring certain holidays
+-Have sales on Fathers or mothers day
+-Have products that make good presents for certain family members (e.g. "best mom/dad in the world" etc.)
+-Have back to school sales where parents can buy something for their kids school start
+-Have posts where parents explain products and how they help them in their day to day life or parenting
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

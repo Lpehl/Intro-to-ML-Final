@@ -1,0 +1,191 @@
+---
+title: 'Problem 7: Association Rule Mining'
+author: "ML Group: Aditya Chawla, Evin McDonald, Laurenz Pehl, Raffie Mannarelli"
+date: "2023-08-12"
+output: pdf_document
+---
+
+**Problem Statement:** Use the data on grocery purchases in groceries.txt and find some interesting association rules for these shopping baskets. The data file is a list of shopping baskets: one person's basket for each row, with multiple items per row separated by commas. Pick your own thresholds for lift and confidence; just be clear what these thresholds are and say why you picked them. Do your discovered item sets make sense? Present your discoveries in an interesting and visually appealing way.
+
+```{r loaddata, include=FALSE, echo=FALSE}
+
+library(tidyverse)
+library(igraph)
+library(arules)  # has a big ecosystem of packages built around it
+library(arulesViz)
+
+data <- read.csv("Class Notes & Codes/AssociationRuleMining/Groceries_tranformed.csv")
+data$GroceryItem <- as.factor(data$GroceryItem)
+data$LineNumber = as.factor(data$LineNumber)
+
+basket = split(x=data$GroceryItem, f=data$LineNumber)
+
+basket = lapply(basket, unique)
+groctrans = as(basket, "transactions")
+
+
+```
+
+
++ Below is the summary of the groceries data set that we have:
+
+
+```{r summary,echo=FALSE,results='show'}
+
+summary(groctrans)
+
+```
+
+
+
+
+
++ Below is the relative frequency plot of all the groceries present in the data set:
+
+```{r plot1,echo=FALSE,results='show'}
+
+itemFrequencyPlot(groctrans, topN = 20)
+
+```
+<br>
+
+As we can see from the plot, it is right skewed. 
+There are few items which occur very less number of times in our shopping list. Additionally, if we look at 
+the most frequent item (whole milk), it contributes to just ~2.5% of the transactions. So we should 
+keep the support below 0.025. To make things in accordance with our data set and more interpretable, 
+let's set the minimum support of 0.001 and *maxlen* of 5 i.e. the product should be present in at least 44
+baskets and a maximum items in a frequent itemset can be 5. We are being a little conservative here 
+since if we keep the support any higher we won't be able to get many association rules to work upon.
+
+First, cross validation is performed to select the confidence parameters to give at least 
+5k rules to analyze. For our analysis we will focus on the **lifts** obtained for each rule instead of *confidence* level which will be discussed shortly.
+
+```{r threshcv, include=FALSE, echo=FALSE,message=FALSE,warning=FALSE}
+
+min_support <- 0.001
+maxlength <- 5
+confidence_levels <- seq(0.1,1,by=0.1)
+num_rules <- 0
+cv_params = expand.grid(confidence_levels,num_rules)
+colnames(cv_params) = c('min_confidence','num_rules')
+nset = nrow(cv_params)
+grocrules_for <- vector('list',nset)
+
+for(i in 1:nset) {
+  cat("Running learning for",i,"loop")
+  grocrules_for[[i]] = apriori(groctrans,parameter=list(support=min_support, confidence=cv_params[i,"min_confidence"], maxlen=maxlength))
+  cv_params[i,"num_rules"] <- length(grocrules_for[[i]])
+  
+}
+
+```
+
+```{r plot,echo=FALSE,results='show',message=FALSE,warning=FALSE,fig.width=8, fig.height=3, fig.fullwidth=TRUE}
+ggplot(cv_params, aes(x = min_confidence)) +
+  geom_line(aes(y = num_rules, color = "No. of rules"), linetype = "solid",size=1) +
+  geom_line(aes(y = 5000, color = "Threshold"), linetype = "solid",size=1) +
+  labs(title = "CV for confidence",
+       x = "Min Confidence",
+       y = "Num rules",
+       color = "CV plot")
+
+```
+
+From the plot we can see that we are getting about 5.5k rules if we set the min confidence around 0.5
+which seems like a sweet spot between the number of rules generated using apriori and a good confidence level. Also, it is easier 
+to look at just around 5k rules rather than 10k or 20k of rules as we might miss some of the important and
+relevant associations.
+<br>
+Hence, we make an aproiori algorithm to create rules which have a minium support of 0.001 and minimum confidence level of 0.5. The summary of the rules obtained is as follows:
+
+```{r apriorimodel, include=FALSE, echo=FALSE}
+grocrules = apriori(groctrans,parameter=list(support=min_support, confidence=0.5, maxlen=maxlength))
+```
+
+```{r summary_apriori,echo=FALSE,results='show'}
+summary(grocrules)
+```
+
+<br><br>
+<h2>From the summary we can note the following:</h2>
+1) There are a total of 5622 association rules
+2) The distribution of rules by length: a length of 4 items has the most rules
+3) The summary of qualitative measures: ranges of support, confidence and lift
+
+<br>
+Now let's look at the plots for our rules:
+
+```{r plot_sup_lift,echo=FALSE,results='show',warning=FALSE,message=FALSE}
+plot(grocrules, measure = c("support", "lift"), shading = "confidence")
+```
+<br>
+It seems like most of the the rules with a lift >5 have a good confidence level so we use a filter of 4 or more on lift which leaves us with 459 rules
+
+```{r lift_filter, include=FALSE, echo=FALSE}
+grocrules = subset(grocrules, subset=lift > 5)
+conf_top20 <- sort(grocrules, by='confidence', decreasing = TRUE)[1:20]
+lift_top20 <- sort(grocrules, by='lift', decreasing = TRUE)[1:20]
+```
+
+
+In the plot below we can see that the itemsets with order 2 are completely removed from the graph after filtering for lifts>5. From this observation we can say that at least 2 items are strongly related to at least 1 item in the given basket. And many of the itemsets with 5 order are having good confidence levels as well.
+
+```{r plot_sup_lift2,echo=FALSE,results='show',message=FALSE,warning=FALSE}
+
+plot(grocrules, method='two-key plot')
+
+```
+
+<br>
+Before looking at the top lifts let's look at the rules with top 20 confidence:
+
+```{r conf_top20,echo=FALSE,results='show'}
+inspect(conf_top20)
+```
+
+
+<br>
+On the RHS we mostly get either other/root vegetables or yogurt with a lot of different items. This doesn't tell us about any definitive or interesting patterns found in our basket so let's look at the top 20 lifts instead. Below is the summary of top 20 lift rules:
+
+```{r lift_top20,echo=FALSE,results='show'}
+
+inspect(lift_top20)
+```
+
+<br>
+<br>
+<br>
+Here we have good association rules among different kinds of grocery items. Let's look at them by plotting them (you might have to zoom in to the plots clearly):
+
+
+```{r lift_top20_plots,echo=FALSE,results='show',fig.width=20, fig.height=10, fig.fullwidth=TRUE}
+
+plot(lift_top20, method="graph")
+```
+<br>
+A more clear depiction of lift and support levels between itemsets (you might have to zoom in to the plots clearly):
+
+```{r lift_top20_plots2,echo=FALSE,results='show',fig.width=20, fig.height=10, fig.fullwidth=TRUE}
+
+plot(lift_top20, method="grouped")
+```
+
+
+<h3>By looking at these plots we can infer these interesting rules:</h3>
+
+1) *Hamburger meat* has the maximum lift with a 63% confidence that it will be bought with *instant food products* & *soda* which makes sense as people generally consume these things together
+Also, *hamburger meat* goes well with *instant food products* & *whole milk*
+
+2) Similarly, the 3rd highest lift is among *sugar* and *baking powder,flour* which is intuitive as these
+are the ingredients that can be used to bake cakes, cookies or cupcakes
+
+3) *Salty snacks* and *Popcorn* & *soda* are heavily related to one another, which can be correlated to the
+fact that people tend to have snack along with popcorn & soda while watching movies or shows
+
+4) At row 10 we have *liquor* & *red/blush wine* and *bottled beer* with a confidence of 90% and lift of 
+11.23, again quite intuitive ;)
+
+5) *Cream cheese* and *curd*,*other veggies*, *whipped/sour cream* & *yogurt* have a strong positive association as seen by the high lift
+although the support is less probably due to less relative frequency of cream cheese in the groceries basket
+
+

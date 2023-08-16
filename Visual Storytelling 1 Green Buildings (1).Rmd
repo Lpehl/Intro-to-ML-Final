@@ -1,0 +1,325 @@
+---
+title: "Visual Storytelling"
+output: pdf_document
+date: "2023-08-14"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r pressure, echo=FALSE}
+library(tidyverse)
+library(ggplot2)
+
+#read in data
+greendata = read.csv('greenbuildings.csv')
+```
+
+
+
+```{r pressures, echo=FALSE}
+#Define function to remove outliers:
+remove_outliers <- function(data, column_name, threshold) {
+  data[!(data[[column_name]] < threshold), ]
+}
+#Define treshold for filtering out Data
+treshold <- 0.1
+
+#Filter rows out where Leasing rate is less than 10%
+Filtered_green <- remove_outliers(greendata, "leasing_rate", treshold)
+
+```
+
+####################EDA with new filtered DATA########################################
+
+##############PLOT RENT by CERTIFICATIONS#############################################
+
+```{r pressure1_2, echo=FALSE}
+#Plot Rent by LEED certification
+ggplot(Filtered_green, aes(x = factor(LEED), y = Rent)) +
+  geom_boxplot() +
+  labs(x = "LEED Rating", y = "Rent", title = "Boxplot of Rent per sqf by LEED Rating")
+
+```
+
+```{r pressure2, echo=FALSE}
+#Plot Rent by Energystar rating
+ggplot(Filtered_green, aes(x = factor(Energystar), y = Rent)) +
+  geom_boxplot() +
+  labs(x = "Energystar Rating", y = "Rent", title = "Boxplot of Rent per sqf by Energystar Rating")
+```
+
+```{r pressure3, echo=FALSE}
+#Plot Rent by green rating
+ggplot(Filtered_green, aes(x = factor(green_rating), y = Rent)) +
+  geom_boxplot() +
+  labs(x = "Green Rating", y = "Rent", title = "Boxplot of Rent per sqf by Green Rating")
+```
+
+#######PLOT CLUSTER RENT (LOCAL MARKET RENT) by CERTIFICATIONS###########################
+
+```{r pressure4, echo=FALSE}
+#Plot Cluster Rent by LEED certification
+ggplot(Filtered_green, aes(x = factor(LEED), y = cluster_rent)) +
+  geom_boxplot() +
+  labs(x = "LEED Rating", y = "Rent", title = "Boxplot of local market average rent per sqf by LEED Rating")
+```
+
+```{r pressure5, echo=FALSE}
+#Plot Cluster Rent by Energystar rating
+ggplot(Filtered_green, aes(x = factor(Energystar), y = cluster_rent)) +
+  geom_boxplot() +
+  labs(x = "Energystar Rating", y = "Rent", title = "Boxplot of local market average rent per sqf by Energystar Rating")
+```
+
+```{r pressure6, echo=FALSE}
+#Plot Cluster Rent by green rating
+ggplot(Filtered_green, aes(x = factor(green_rating), y = cluster_rent)) +
+  geom_boxplot() +
+  labs(x = "Green Rating", y = "Rent", title = "Boxplot of local market average rent per sqf by Green Rating")
+```
+
+##############PLOT Leasing Rate (Occupancy Rate) by CERTIFICATIONS######################
+
+```{r pressure7, echo=FALSE}
+#Plot Leasing Rate by LEED certification
+ggplot(Filtered_green, aes(x = factor(LEED), y = leasing_rate)) +
+  geom_boxplot() +
+  labs(x = "LEED", y = "Leasing Rate", title = "Boxplot of Leasing Rate per sqf by LEED Rating")
+```
+
+```{r pressure8, echo=FALSE}
+#Plot Leasing Rate by Energystar rating
+ggplot(Filtered_green, aes(x = factor(Energystar), y = leasing_rate)) +
+  geom_boxplot() +
+  labs(x = "Energystar Rating", y = "Leasing Rate", title = "Boxplot of Leasing Rate per sqf by Energystar Rating")
+```
+
+```{r pressure9, echo=FALSE}
+#Plot Leasing Rate by green rating
+ggplot(Filtered_green, aes(x = factor(green_rating), y = leasing_rate)) +
+  geom_boxplot() +
+  labs(x = "Green Rating", y = "Leasing Rate", title = "Boxplot of Leasing Rate per sqf by Green Rating")
+```
+
+#####################Leasing rate by cluster rent########################################
+
+```{r pressure10, echo=FALSE}
+ggplot(Filtered_green, aes(x = cluster_rent, y = leasing_rate)) +
+  geom_point() +
+  labs(x = "cluster_rent", y = "leasing_rate", title = "Scatterplot of leasing rate per cluster rent")
+```
+
+Clearly higher Cluster rent is correlated with higher leasing rates
+
+#################### INITIAL INTERPRETATION######################################
+
+Interpretation
+From conducting EDA on the filtered data we can draw the following conclusions
+
+LEED
+LEED certified buildings have slightly lower median Rent per sqf than non-Leed certified buildings
+However, non Leed Certified buildings has a lot of outliers with really high rent, which might indicate that there are more non-Leed buildings in expensive locations
+Plotting the average local market rent by LEED rating confirms our suspicion
+From the plot we can clearly see that non-LEED rated buildings are in areas with higher local market rent per sqf
+However, LEED rated buildings have a higher occupancy rate which is indicative of better performance and will result in higher overall rent receipt for building
+We can see that Leasing Rates tend to be higher in areas where cluster rent is higher
+Cluster rent is therefore a confounding variable for occupancy rate
+The outperformance in terms of occupancy rate for LEED certified buildings appears to be due to their rating because they tend to be located in areas with lower market rent which is typically correlated with lower occupancy rates
+LEED certified buildings appear to genuinely outperform non-LEED buildings as measured by occupancy rate
+
+Energystar
+Energystar rated buildings command slightly higher median rent per sqf than non-Energystar rated buildings
+However after plotting average local market rent by Energystar certification shows that Energystar rated-buildings tend to be in areas with slightly higher average local market rent per sqf
+However, Energystar rated buildings have a higher occupancy rate which is indicative of better performance and will result in higher overall rent receipt for building
+However, we can see that Leasing Rates tend to be higher in areas where cluster rent is higher
+Cluster rent is therefore a confounding variable for occupancy rate
+The outperformance in terms of occupancy rate for Energystar certified buildings could be due to their location rather than rating
+There appears to be not sufficient evidence that Energystar rated buildings outperform non-Energystar rated buildings in rent or occupancy rate solely due to their rating
+
+Green Rated
+Green rated buildings have a higher median rent per sqf than non-green rated buildings
+However, non green rated buildings has a lot of outliers with really high rent, which might indicate that there are more non-green buildings in expensive locations
+When plotting average local market rent by Green Rating we can see that Green rated buildings seem to be located in similar expensive markets than non-Green Rated
+This indicates that Green rated buildings actually tend to outperform non-Green rated ones by rent per sqf due to their ratings rather than location
+Additionally Green rated buildings have higher occupancy rate which is indicative of better performance and will result in higher overall rent receipts per buildings
+Since their cluster rent is similar to non-green rated this seems to indicate that green buildings tend to outperform non-Green rated ones by occupancy rate due to their certification rather than location
+
+Overall: Green rated buildings tend to outperform non-Green rated in terms of Rent per sqf and Occupancy rate and this outperformance is not caused by their location
+
+##########################################################################################
+Let's focus on Green rated buildings now and critically analyze their outperformance further
+##########################################################################################
+
+
+##############PLOT Employment Growth impact on local market rent###########################
+
+```{r pressure11, echo=FALSE}
+#Plot Employment Growth versus Rent
+ggplot(Filtered_green, aes(x = empl_gr, y = cluster_rent)) +
+  geom_point() +
+  labs(title = "Employment Growth vs local market rent", x = "Employment Growth YoY", y = "Average Rent per sqf in local market")
+```
+
+Clearly there is a positive relationship where areas with higher Employment Growth tend to have higher average rent
+However, we can see that the highest rents are charged in areas with rather average employment growth
+This leads us to believe that YoY employment growth is not the best predictor of rent
+
+#######PLOT Employment Growth in Building's Geographic region by CERTIFICATIONS#############
+
+```{r pressure12, echo=FALSE}
+#Plot Employment Growth by LEED certification
+ggplot(Filtered_green, aes(x = factor(LEED), y = empl_gr)) +
+  geom_boxplot() +
+  labs(x = "LEED Rating", y = "Employment Growth", title = "Boxplot of YoY Employment Growth by LEED Rating")
+```
+
+```{r pressure13, echo=FALSE}
+#Plot Employment Growth by Energystar rating
+ggplot(Filtered_green, aes(x = factor(Energystar), y = empl_gr)) +
+  geom_boxplot() +
+  labs(x = "Energystar Rating", y = "Employment Growth", title = "Boxplot of YoY Employment Growth by Energystar Rating")
+```
+
+```{r pressure14, echo=FALSE}
+#Plot Employment Growth by green rating
+ggplot(Filtered_green, aes(x = factor(green_rating), y = empl_gr)) +
+  geom_boxplot() +
+  labs(x = "Green Rating", y = "Employment Growth", title = "Boxplot of YoY Employment Growth by Green Rating")
+```
+
+###################INTERPRETATION####################
+
+LEED Certification
+There appears to be no significant difference in Employment growth in areas where LEED buildings are vs non LEED
+
+Energystar Certification
+Energystar certified buildings seem to be located in areas with slightly higher employment growth but the difference is not big
+
+Green Rating
+Green rated buildings seem to be located in areas with slightly higher employment growth but the difference is not big
+
+##############Building Quality impact on rent#######################
+
+```{r pressure15, echo=FALSE}
+#Plot Class A Building Quality versus Rent
+ggplot(Filtered_green, aes(x = factor(class_a), y = Rent)) +
+  geom_boxplot() +
+  labs(title = "Quality of buildings vs Rent", x = "Class A building Quality", y = "Rent per sqf")
+```
+
+Clearly Buildings with higher quality in this case Class A Buildings command higher rates than non Class-A buildings
+
+##############Building Quality impact on Occupancy Rate######################
+
+```{r pressure16, echo=FALSE}
+#Plot Class A Building Quality versus Occupancy Rate
+ggplot(Filtered_green, aes(x = factor(class_a), y = leasing_rate)) +
+  geom_boxplot() +
+  labs(title = "Quality of buildings vs Occupancy Rate", x = "Class A building Quality", y = "Occupancy Rate")
+```
+
+Clearly Buildings with higher quality in this case Class A Buildings have much higher occupancy rates than non Class-A buildings
+
+##############PLOT Building Quality by CERTIFICATIONS#########################
+
+########LEED CERTIFICATION##############
+
+```{r pressure17, echo=FALSE}
+#Plot Class A Building Quality by LEED certification
+# Calculate proportions of Class A buildings by LEED rating
+proportions <- Filtered_green %>%
+  group_by(LEED) %>%
+  summarise(proportion_class_a = mean(class_a))
+
+# Create a grouped bar plot to show the proportions
+ggplot(proportions, aes(x = factor(LEED), y = proportion_class_a, fill = factor(LEED))) +
+  geom_bar(stat = "identity") +
+  labs(x = "LEED Rating", y = "Proportion of Class A Buildings",
+       title = "Proportion of Class A Buildings by LEED Certification") +
+  scale_fill_discrete(name = "LEED Rating") +
+  theme_minimal() 
+```
+
+LEED rated Buildings have a much higher proportion of Class A Quality Buildings than non-LEED rated Buildings
+LEED rated Buildings are roughly 70% Class A Quality vs roughly 40% for non-LEED rated buildings
+Class A Quality is a confounder for both Average Rent per sqf as well as occupancy rate 
+Therefore their outperformance on both of these metrics could largely be driven by their higher overall building Quality rather than rating by itself
+
+############################ENERGYSTAR CERTIFICATION################################
+
+
+
+```{r pressure18, echo=FALSE}
+#Plot Class A Building Quality by Energystar certification
+# Calculate proportions of Class A buildings by Energystar rating
+proportions <- Filtered_green %>%
+  group_by(Energystar) %>%
+  summarise(proportion_class_a = mean(class_a))
+
+# Create a grouped bar plot to show the proportions
+ggplot(proportions, aes(x = factor(Energystar), y = proportion_class_a, fill = factor(Energystar))) +
+  geom_bar(stat = "identity") +
+  labs(x = "Energystar Rating", y = "Proportion of Class A Buildings",
+       title = "Proportion of Class A Buildings by Energystar Certification") +
+  scale_fill_discrete(name = "Energystar Rating") +
+  theme_minimal() 
+```
+
+Energystar rated Buildings have a much higher proportion of Class A Quality Buildings than non-Energystar rated Buildings
+Energystar rated Buildings are roughly 80% Class A Quality vs less than 40% for non-Energystar rated buildings
+Class A Quality is a confounder for both Average Rent per sqf as well as occupancy rate 
+Therefore their outperformance on both of these metrics could largely be driven by their higher overall building Quality rather than rating by itself
+
+############################Green CERTIFICATION#############################################
+
+```{r pressure19, echo=FALSE}
+#Plot Class A Building Quality by Green certification
+# Calculate proportions of Class A buildings by Green  rating
+proportions <- Filtered_green %>%
+  group_by(green_rating) %>%
+  summarise(proportion_class_a = mean(class_a))
+
+# Create a grouped bar plot to show the proportions
+ggplot(proportions, aes(x = factor(green_rating), y = proportion_class_a, fill = factor(green_rating))) +
+  geom_bar(stat = "identity") +
+  labs(x = "Green Rating", y = "Proportion of Class A Buildings",
+       title = "Proportion of Class A Buildings by Green Certification") +
+  scale_fill_discrete(name = "Green Rating") +
+  theme_minimal() 
+```
+
+Green rated Buildings have a much higher proportion of Class A Quality Buildings than non-Green rated Buildings
+Green rated Buildings are roughly 80% Class A Quality vs less than 40% for non-Green rated buildings
+Class A Quality is a confounder for both Average Rent per sqf as well as occupancy rate 
+Therefore their outperformance on both of these metrics could largely be driven by their higher overall building Quality rather than rating by itself
+
+#####################Leasing rate by Rent#############################################
+
+```{r pressure20, echo=FALSE}
+ggplot(Filtered_green, aes(x = Rent, y = leasing_rate)) +
+  geom_point() +
+  labs(x = "Rent", y = "leasing_rate", title = "Scatterplot of leasing rate per Rent per sqf")
+```
+
+Clearly higher rent is correlated with higher Occupancy rate
+
+###########################FINAL CONCLUSION#######################
+
+Based on our analysis conducted above we disagree with the recommendation of the stats guru
+We believe that there is insufficient evidence that any of the Green certifications by themselves lead to better performance on a rent per sqf basis or occupancy rate
+
+Rent per sqf as well as occupancy rates have many confounding variables that are impacting these metrics
+Rent per sqf is driven by both local market rent as well as building quality particular Class A rated Building Quality
+Occupancy rate is driven by both Rent per sqf as well as building quality particular Class A rated Building Quality
+
+The green certified buildings (LEED, Energystar, Green) have a much higher proportion of Class A rated Buildings
+Therefore their outperformance on both of these metrics seems largely to be due to higher overall buidling quality not their certification
+
+We therefore recommend the developer to focus on getting the building certified as A Quality rather than Green certified since this attribute seems to mainly be driving higher rent and occupancy rates
+
+
+
+
+
